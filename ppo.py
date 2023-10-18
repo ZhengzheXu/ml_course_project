@@ -114,11 +114,14 @@ def train(cfg:PPOConfig,env,agent):
 
         image = env.render("rgb_array")[0]  
         obs_img = img2obs(image) # get the position of obstacles, agent, goal
+        # obs_img is a column vector of 12 elements
+        # it is the flattened version of a 2 by 6 matrix
+        # cols are: ag2go, ag_pos, ad2ag, ob2ag_1, ob2ag_2, ob2ag_3
         stacked_frames = [obs_img]*cfg.frames # initialize the stacked_frames
+        
         # update the stacked_frames, pop the first frame and append the new frame
         stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg) 
-        
-        state = normalize(np.concatenate(stacked_frames, axis=0))
+        state = normalize(np.concatenate(stacked_frames, axis=0)) # flatten the stacked_frames, then normalize it
         # state = normalize(np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0))
         ep_reward = 0
         i_step = 0
@@ -239,7 +242,7 @@ def eval(cfg:PPOConfig,env,agent):
         else:
             ma_rewards.append(ep_reward) 
     np.savetxt(cfg.model_path+'reward_eval.txt',rewards)
-    print('Complete evaling！')
+    print('Complete evaling!')
     return rewards, ma_rewards,i_step,done_n[1]
 
 def img2obs(image_array):
@@ -255,9 +258,7 @@ def img2obs(image_array):
 
     pooled_image = cv2.resize(image_array, (800,800), 0, 0, cv2.INTER_MAX) # scale the image to 800*800
     _, binary_dst = cv2.threshold(pooled_image[:,:,0], 70, 255, cv2.THRESH_BINARY_INV) # threshold the image
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_dst) # get the connected components
-    print("num_labels",num_labels)
-    print("centroids",centroids)
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_dst) # get the connected components (background and obstacles)
     
     # 显示池化后的图像
     #cv2.imshow('Pooled Image', pooled_image)
@@ -303,8 +304,13 @@ def img2obs(image_array):
     #获取distance按大小排序后的index
     sorted_indexes = np.argsort(distance)
     #return np.concatenate((goal_pos,agent_pos,adv_pos,obstacle_pos[sorted_indexes[0]],obstacle_pos[sorted_indexes[1]],obstacle_pos[sorted_indexes[2]]))/256
-    return np.concatenate((goal_pos-agent_pos,agent_pos,adv_pos-agent_pos,obstacle_pos[sorted_indexes[0]]-agent_pos,obstacle_pos[sorted_indexes[1]]-agent_pos,obstacle_pos[sorted_indexes[2]]-agent_pos))/256
-  
+    ag2go_vec = goal_pos-agent_pos
+    ad2ag_vec = agent_pos-adv_pos
+    ob2ag_vec_1 = obstacle_pos[sorted_indexes[0]]-agent_pos
+    ob2ag_vec_2 = obstacle_pos[sorted_indexes[1]]-agent_pos
+    ob2ag_vec_3 = obstacle_pos[sorted_indexes[2]]-agent_pos
+    # return np.concatenate((goal_pos-agent_pos,agent_pos,adv_pos-agent_pos,obstacle_pos[sorted_indexes[0]]-agent_pos,obstacle_pos[sorted_indexes[1]]-agent_pos,obstacle_pos[sorted_indexes[2]]-agent_pos))/256
+    return np.concatenate((ag2go_vec,agent_pos,ad2ag_vec,ob2ag_vec_1,ob2ag_vec_2,ob2ag_vec_3))/256
 
 if __name__ == "__main__":
     cfg=PPOConfig()
