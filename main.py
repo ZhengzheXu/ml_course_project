@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     # env.reset(np.array([[0.0, 0.0], [0.7, 0.7]]))
     env.reset()
-    image = env.render("rgb_array")  # 使用这种方法读取图片
+    image = env.render("rgb_array")  # read image
     step = 0
     total_step = 0
     max_step = 400
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         act_n = np.array([0,1,0,0,1])
         next_obs_n, reward_n, done_n, _ = env.step(act_n, 1)
         # print(f"vel: {np.linalg.norm(next_obs_n[0][-4:-2])}, vel2: {np.linalg.norm(next_obs_n[0][-2:])}")
-        image = env.render("rgb_array")[0]  # 使用这种方法读取图片
+        image = env.render("rgb_array")[0]  # read image
         
         # print(f"shape: {np.shape(image)}")
         step += 1

@@ -29,7 +29,7 @@ class PPOConfig:
         self.ShowImage = False      # render image
         # self.result_path = curr_path+"/outputs/" +self.env+'/'+curr_time+'/results/'  # path to save results
         self.load_model = False     # load model
-        self.train = False          # train model
+        self.train = True          # train model
         self.model_path = 'saved_models/Simple_Tag_Random_Img/'  # path to save models
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
@@ -47,7 +47,8 @@ class PPOConfig:
         self.eps_start = 1.0
         self.eps_decay = 0.995
         self.eps_end = 0.01
-        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device('cpu')
         self.frames = 10
 
 def env_agent_config(cfg:PPOConfig):
@@ -100,6 +101,7 @@ def train(cfg:PPOConfig,env,agent):
     Input: configuration, env, agent
     Output: reward and ma_reward
     """
+    
     print('Start to train !')
     print(f'Env: {cfg.env}, Algorithm: {cfg.algo}, Device: {cfg.device}')
     rewards  = []
@@ -111,9 +113,11 @@ def train(cfg:PPOConfig,env,agent):
         observation, info = env.reset()
 
         image = env.render("rgb_array")[0]  
-        obs_img = img2obs(image)
-        stacked_frames = [obs_img]*cfg.frames
-        stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg)
+        obs_img = img2obs(image) # get the position of obstacles, agent, goal
+        stacked_frames = [obs_img]*cfg.frames # initialize the stacked_frames
+        # update the stacked_frames, pop the first frame and append the new frame
+        stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg) 
+        
         state = normalize(np.concatenate(stacked_frames, axis=0))
         # state = normalize(np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0))
         ep_reward = 0
@@ -140,8 +144,6 @@ def train(cfg:PPOConfig,env,agent):
             """
             处理图像数据，提取出图片中的状态信息
             """
-
-
             stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg)
             next_state = normalize(np.concatenate(stacked_frames, axis=0))
             agent.buffer.rewards.append(reward_n[1])
@@ -169,8 +171,7 @@ def train(cfg:PPOConfig,env,agent):
             ma_rewards.append(0.9*ma_rewards[-1]+0.1*ep_reward)
         else:
             ma_rewards.append(ep_reward) 
-
-   
+            
         if i_ep % 8 == 0:
             print('\nsave model')
             agent.save(cfg.model_path,i_ep)
@@ -252,10 +253,12 @@ def img2obs(image_array):
     """
     obstacle_num_in_obs = 3
 
-    pooled_image = cv2.resize(image_array, (800,800), 0, 0, cv2.INTER_MAX)
-    _, binary_dst = cv2.threshold(pooled_image[:,:,0], 70, 255, cv2.THRESH_BINARY_INV)
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_dst)
-
+    pooled_image = cv2.resize(image_array, (800,800), 0, 0, cv2.INTER_MAX) # scale the image to 800*800
+    _, binary_dst = cv2.threshold(pooled_image[:,:,0], 70, 255, cv2.THRESH_BINARY_INV) # threshold the image
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_dst) # get the connected components
+    print("num_labels",num_labels)
+    print("centroids",centroids)
+    
     # 显示池化后的图像
     #cv2.imshow('Pooled Image', pooled_image)
     # cv2.imshow('image_array', image_array)
@@ -272,51 +275,20 @@ def img2obs(image_array):
     #172,172,236
     adv_lower_bound = np.array([231,165, 165])
     adv_upper_bound = np.array([241,177, 177])
-
+    
+    # Find objects using color in the region
+    # Note: after using "np.where", we get a 2-row matrix
+    # then we transpose it and get a 2-column matrix. I have no idea why should we take the first two columns
     goal_im = np.array(np.where(np.all((pooled_image>=goal_lower_bound) & (pooled_image<=goal_upper_bound),axis=2))).transpose()[:,:2]
     agent_im = np.array(np.where(np.all((pooled_image>=agent_lower_bound) & (pooled_image<=agent_upper_bound),axis=2))).transpose()[:,:2]
     adv_im = np.array(np.where(np.all((pooled_image>=adv_lower_bound) & (pooled_image<=adv_upper_bound),axis=2))).transpose()[:,:2]
 
-    # cv2.imshow('goal_im', pooled_image[:,:,0] * np.all((pooled_image>=goal_lower_bound) & (pooled_image<=goal_upper_bound),axis=2))
-    # cv2.imshow('agent_im', pooled_image[:,:,0] * np.all((pooled_image>=agent_lower_bound) & (pooled_image<=agent_upper_bound),axis=2))
-    # cv2.imshow('adv_im', pooled_image[:,:,0] * np.all((pooled_image>=adv_lower_bound) & (pooled_image<=adv_upper_bound),axis=2))
-     #将一维灰度图像扩展到三维
-    # labels= np.expand_dims(binary_dst,axis=2).repeat(3,axis=2).astype(np.uint8)
-    # for st in stats[1:]:
-    #     cv2.rectangle(labels, (st[0], st[1]), (st[0]+st[2], st[1]+st[3]), (0, 255, 0), 1)
-    # cv2.imshow('labels', labels)
-
-    # contours,hierarchy = cv2.findContours(pooled_image[:,:,0] * np.all((pooled_image>=goal_lower_bound) & (pooled_image<=goal_upper_bound),axis=2),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)  #寻找轮廓点
-    # for obj in contours:
-    #     area = cv2.contourArea(obj)  #计算轮廓内区域的面积
-    #     #cv2.drawContours(image_array, obj, -1, (255, 0, 0), 4)  #绘制轮廓线
-    #     perimeter = cv2.arcLength(obj,True)  #计算轮廓周长
-    #     approx = cv2.approxPolyDP(obj,0.02*perimeter,True)  #获取轮廓角点坐标
-    #     CornerNum = len(approx)   #轮廓角点的数量
-    #     x, y, w, h = cv2.boundingRect(approx)  #获取坐标值和宽度、高度
-
-    #     #轮廓对象分类
-    #     if CornerNum ==3: objType ="triangle"
-    #     elif CornerNum == 4:
-    #         if w==h: objType= "Square"
-    #         else:objType="Rectangle"
-    #         cv2.rectangle(pooled_image,(x,y),(x+w,y+h),(0,0,255),5)  #绘制边界框
-    #         #cv2.putText(image_array,objType,(x+(w//2),y+(h//2)),cv2.FONT_HERSHEY_COMPLEX,0.6,(0,0,0),1)  #绘制文字
-    #     elif CornerNum>4: objType= "Circle"
-    #     else:objType="N"
-
-        
-
-    # cv2.imshow('rectangle', pooled_image)
-
-
-    #cv2.waitKey(0)
-
-    agent_pos = np.mean(agent_im,axis=0).astype(int)
-    agent_pos = np.array((agent_pos[1],agent_pos[0]))
-
     goal_pos = np.mean(goal_im,axis=0).astype(int)
     goal_pos = np.array((goal_pos[1],goal_pos[0]))
+    
+    agent_pos = np.mean(agent_im,axis=0).astype(int)
+    agent_pos = np.array((agent_pos[1],agent_pos[0]))
+    
     adv_pos = np.mean(adv_im,axis=0).astype(int)
     adv_pos = np.array((adv_pos[1],adv_pos[0]))
 
