@@ -8,108 +8,95 @@ import time
 
 import casadi as ca
 
-def mpc(env):
-    # 获取agent的位置
-    agent_pos = np.array([env.world.agents[0].state.p_pos]).reshape(1, 2)
-    # 获取hunter的位置
-    hunter_pos = np.array([env.world.agents[1].state.p_pos]).reshape(1, 2)
-    # 获取agent的速度
-    agent_vel = np.array([env.world.agents[0].state.p_vel]).reshape(1, 2)
-    # 获取hunter的速度
-    hunter_vel = np.array([env.world.agents[1].state.p_vel]).reshape(1, 2)
-    # print(f"agent_pos: {agent_pos}, hunter_pos: {hunter_pos}, agent_vel: {agent_vel}, hunter_vel: {hunter_vel}")
-    check_point = np.array([env.world.check[0].state.p_pos]).reshape(1, 2)
-    # 获取landmark的位置
-    lm1_pos = np.array([env.world.landmarks[0].state.p_pos]).reshape(1, 2)
-    lm2_pos = np.array([env.world.landmarks[1].state.p_pos]).reshape(1, 2)
-    lm3_pos = np.array([env.world.landmarks[2].state.p_pos]).reshape(1, 2)
-    # 获取当前最近的landmark
-    dist2lm = np.array([np.linalg.norm(agent_pos - lm1_pos), np.linalg.norm(agent_pos - lm2_pos), np.linalg.norm(agent_pos - lm3_pos)])
-    lm_near_pos = np.array([lm1_pos, lm2_pos, lm3_pos])[np.argmin(dist2lm)]
-    # print(f"lm_near_dist: {np.min(dist2lm)}")
+def extract_positions_velocities(env):
+    agent_pos = np.array([env.world.agents[0].state.p_pos])
+    hunter_pos = np.array([env.world.agents[1].state.p_pos])
+    agent_vel = np.array([env.world.agents[0].state.p_vel])
+    hunter_vel = np.array([env.world.agents[1].state.p_vel])
+    check_point = np.array([env.world.check[0].state.p_pos])
+    lm_positions = np.array([lm.state.p_pos for lm in env.world.landmarks])
 
-    line_dis = 0.68
-    ag2check = np.linalg.norm(agent_pos - check_point)
+    return agent_pos, hunter_pos, agent_vel, hunter_vel, check_point, lm_positions
 
-    N = 4
-    T = 0.1
+def find_nearest_landmark(agent_pos, lm_positions):
+    dist_to_lm = np.linalg.norm(agent_pos - lm_positions, axis=1)
+    nearest_lm_pos = lm_positions[np.argmin(dist_to_lm)]
+    nearest_lm_pos = np.array([nearest_lm_pos])
+    return nearest_lm_pos
 
+def predict_hunter_positions(hunter_pos, hunter_vel, N, T):
     hunter_pred = np.zeros((N, 2))
     for i in range(N):
-        this_pos = hunter_pos + i*T*hunter_vel
-        hunter_pred[i, :] = np.array([this_pos[0, 0], this_pos[0, 1]])
-    # print(f"hunter_pred: {hunter_pred}")
+        this_pos = hunter_pos + i * T * hunter_vel
+        hunter_pred[i, :] = this_pos[0, :]
+    return hunter_pred
 
-    # 状态变量
+def setup_optimization_problem(agent_pos, agent_vel, N, T, nearest_lm_pos, hunter_pred):
     opti = ca.Opti()
-    # 速度
-    v = opti.variable(N, 2)
-    # 位置
-    p = opti.variable(N, 2)
-    # 控制量
-    u = opti.variable(N, 2) # 线加速度和方向
-    # 速度约束
-    # print(f"agent_vel: {agent_vel}")
-    opti.subject_to(v[0, :] == agent_vel)
-    # 位置约束
-    opti.subject_to(p[0, :] == agent_pos)
 
+    v = opti.variable(N, 2)
+    p = opti.variable(N, 2)
+    u = opti.variable(N, 2)
+
+    opti.subject_to(v[0, :] == agent_vel)
+    opti.subject_to(p[0, :] == agent_pos)
     opti.subject_to(opti.bounded(0, u[:, 0], 1))
-    # opti.subject_to(opti.bounded(0, u[:, 1], 2*np.pi))
 
     dis_safe = 0.03
     dis_safe_hunter = 0.02
-    
-    NN = 2
-    for i in range(1, NN):
-        # 约束条件:到landmark的距离大于安全距离
-        opti.subject_to(ca.mtimes([(p[i, :] - lm_near_pos), (p[i, :] - lm_near_pos).T]) >= dis_safe**2)
-        # 约束条件:到hunter的距离大于安全距离
-        # opti.subject_to(ca.mtimes([(p[i, :] - hunter_pos), (p[i, :] - hunter_pos).T]) >= dis_safe_hunter**2)
-        # print(f"p[i, :]: {p[i, :]}")
-        # print(f"hunter_pred[i, :]: {hunter_pred[i, :]}")
-        # print("shape of p[i, :]: ", p[i, :].shape)
-        # print("shape of hunter_pred[i, :]: ", hunter_pred[i, :].shape)
-        # print("shape of hunter_pred: ", hunter_pred.shape)
-        opti.subject_to(ca.mtimes([(p[i, :] - hunter_pred[i, :].reshape(1, 2)), (p[i, :] - hunter_pred[i, :].reshape(1, 2)).T]) >= dis_safe_hunter**2)
-    # 设置约束
-    for i in range(N-1):
-        opti.subject_to(p[i+1, :] == p[i, :] + T*v[i, :])
-        opti.subject_to(v[i+1, 0] == v[i, 0] + T*u[i, 0]*ca.cos(u[i, 1]))
-        opti.subject_to(v[i+1, 1] == v[i, 1] + T*u[i, 0]*ca.sin(u[i, 1]))
-    
-    # 代价为距离hunter的距离
+
+    for i in range(1, N):
+        opti.subject_to(ca.mtimes([(p[i, :] - nearest_lm_pos), (p[i, :] - nearest_lm_pos).T]) >= dis_safe ** 2)
+        opti.subject_to(
+            ca.mtimes([(p[i, :] - hunter_pred[i, :].reshape(1, 2)), (p[i, :] - hunter_pred[i, :].reshape(1, 2)).T]) >=
+            dis_safe_hunter ** 2)
+
+    for i in range(N - 1):
+        opti.subject_to(p[i + 1, :] == p[i, :] + T * v[i, :])
+        opti.subject_to(v[i + 1, 0] == v[i, 0] + T * u[i, 0] * ca.cos(u[i, 1]))
+        opti.subject_to(v[i + 1, 1] == v[i, 1] + T * u[i, 0] * ca.sin(u[i, 1]))
+
+    var = (v, p, u)
+    return opti, var
+
+def define_cost_function(opti, var, N, agent_pos, check_point, line_dis, nearest_lm_pos):
     cost = 0
+    v, p, u = var
     Q_h = np.array([[1, 0], [0, 1]])
     Q_c = np.array([[1, 0], [0, 1]])
     R_u = np.array([[0.01, 0], [0, 1]])
     Q_o = np.array([[1, 0], [0, 1]])
 
     for i in range(N):
-        # cost -= ca.mtimes([(p[i, :] - hunter_pos), Q_h, (p[i, :] - hunter_pos).T])
-        # 到达check point的代价，越近越好
-        if ag2check < line_dis:
-            # print("到达check point")
+        if np.linalg.norm(agent_pos - check_point) < line_dis:
             cost += ca.mtimes([(p[i, :] - check_point), Q_c, (p[i, :] - check_point).T]) * 5
         else:
             cost += ca.mtimes([(p[i, :] - check_point), Q_c, (p[i, :] - check_point).T]) * 0.6
-        # cost += ca.mtimes([u[i, :], R_u, u[i, :].T]) * 0.02
-        cost -= ca.mtimes([(p[i, :] - lm_near_pos), Q_o, (p[i, :] - lm_near_pos).T])
-    
+        cost -= ca.mtimes([(p[i, :] - nearest_lm_pos), Q_o, (p[i, :] - nearest_lm_pos).T])
+
+    return cost
+
+def mpc(env):
+    agent_pos, hunter_pos, agent_vel, hunter_vel, check_point, lm_positions = extract_positions_velocities(env)
+    nearest_lm_pos = find_nearest_landmark(agent_pos, lm_positions)
+
+    N = 4
+    T = 0.1
+    line_dis = 0.68
+
+    hunter_pred = predict_hunter_positions(hunter_pos, hunter_vel, N, T)
+
+    opti, var = setup_optimization_problem(agent_pos, agent_vel, N, T, nearest_lm_pos, hunter_pred)
+    v, p, u = var
+    cost = define_cost_function(opti, var, N, agent_pos, check_point, line_dis, nearest_lm_pos)
+
     opti.minimize(cost)
     settings = {'ipopt.print_level': 0, 'print_time': 0}
     opti.solver('ipopt', settings)
-    # opti.solver('ipopt')
-    # 设置代价函数
 
-    # 求解
     sol = opti.solve()
-    # print(f"sol: {sol.value(p)}")
-    # print(f"sol: {sol.value(v)}")
-    # print(f"sol: {sol.value(u)}")
-    # print(f"sol: {sol.value(cost)}")
     return sol.value(u)
-    
+
 def get_state(env):
     agent_pos = np.array([env.world.agents[0].state.p_pos]).reshape(1, 2)
     agent_vel = np.array([env.world.agents[0].state.p_vel]).reshape(1, 2)
