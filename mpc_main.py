@@ -116,77 +116,23 @@ if __name__ == '__main__':
     step = 0
     total_step = 0
     max_step = 400
-    # file = open('./course/label.txt', 'w')
-    pos_x = []
-    pos_y = []
-    vel_x = []
-    vel_y = []
-    u_x = []
-    u_y = []
 
-    count = 0
-    # while True:
-    while count < 100:
-        # [noop, move right, move left, move up, move down]
-        # act_n = np.array([0,1,0,-5,0])
+    while True:
         input = mpc(env)
         this_input = input[0]
-        # print(f"this_input: {this_input}")
+
         u_x = this_input[0] * np.cos(this_input[1])
         u_y = this_input[0] * np.sin(this_input[1])
         act_n = np.array([0, u_x, 0, u_y, 0])
 
         print("(u_x, u_y): ", np.around([u_x, u_y], decimals=3))
-        # print(" u = ", np.linalg.norm([u_x, u_y]))
-        # pos, vel = get_state(env)
-        # pos_x.append(pos[0][0])
-        # pos_y.append(pos[0][1])
-        # vel_x.append(vel[0][0])
-        # vel_y.append(vel[0][1])
-        # u_x.append(act_n[1])
-        # u_y.append(act_n[3])
 
-        # 保留三位小数
-        # print("input: ", np.around(input[0], decimals=3))
         next_obs_n, reward_n, done_n, _ = env.step(act_n, 1)
-        # print(f"vel: {np.linalg.norm(next_obs_n[0][-4:-2])}, vel2: {np.linalg.norm(next_obs_n[0][-2:])}")
         image = env.render("rgb_array")[0]  # read image
-        # print(f"shape: {np.shape(image)}")
         step += 1
         
-        # try:
-        #     input = mpc(agent, env)
-        # except:
-        #     pass
         if step % 50:
-            # print(image)
-            # plt.imshow(image)
-            # plt.show()
             time.sleep(0.0167) # 60 fps
-            # plt.close()
 
         if True in done_n or step > max_step:
             break
-        # count += 1
-    
-    # print(f"pos_x: {pos_x}")
-    # print(f"pos_y: {pos_y}")
-    # print(f"vel_x: {vel_x}")
-    # print(f"vel_y: {vel_y}")
-    # dt = 0.1
-    # time_list = np.arange(0, dt*len(pos_x), dt)
-    # plt.figure()
-    # # plt.plot(time_list, pos_x, label='pos_x')
-    # # plt.plot(time_list, pos_y, label='pos_y')
-    # plt.plot(time_list, vel_x, label='vel_x')
-    # plt.plot(time_list, vel_y, label='vel_y')
-    # # pred_vx = np.gradient(pos_x, dt)
-    # # pred_vy = np.gradient(pos_y, dt)
-    # # plt.plot(time_list, pred_vx, label='pred_vx')
-    # # plt.plot(time_list, pred_vy, label='pred_vy')
-    # pred_ax = np.gradient(vel_x, dt)
-    # pred_ay = np.gradient(vel_y, dt)
-    # plt.plot(time_list, pred_ax, label='pred_ax')
-    # plt.plot(time_list, pred_ay, label='pred_ay')
-    # plt.legend()
-    # plt.show()
