@@ -7,6 +7,7 @@ from torch.distributions import Categorical
 from torch.distributions import MultivariateNormal
 # from model import ActorCritic
 from agents.PPO.model import ActorCritic
+
 class RolloutBuffer:
     def __init__(self) -> None:
         self.actions = []
@@ -15,6 +16,7 @@ class RolloutBuffer:
         self.rewards = []
         self.state_values = []
         self.is_terminals = []
+
     def clear(self):
         del self.actions[:]
         del self.states[:]
@@ -22,6 +24,7 @@ class RolloutBuffer:
         del self.rewards[:]
         del self.state_values[:]
         del self.is_terminals[:]
+
 class PPO:
     def __init__(self, input_dim,action_dim,cfg):
         self.policy = ActorCritic(input_dim, action_dim).to(cfg.device)
@@ -39,9 +42,14 @@ class PPO:
         self.MseLoss = nn.MSELoss()
    
     def select_action(self,state):
+        # print("state = ", state)
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
         with torch.no_grad():
-            means,state_values = self.old_policy(state)
+            # means,state_values = self.old_policy(state)
+            means,state_values = self.old_policy.forward(state)
+            # print("means = ", means)
+            # print("state_values = ", state_values)
+            # print("self.old_policy", self.old_policy)
         if self.train:
             cov_mat = torch.diag(self.old_policy.action_var.to(self.device)).unsqueeze(dim=0)
             dist = MultivariateNormal(means, cov_mat)
@@ -57,7 +65,6 @@ class PPO:
 
         return a
     
-
     def update(self):
         rewards = []
         discounted_reward = 0
@@ -105,8 +112,13 @@ class PPO:
         torch.save(self.optimizer.state_dict(), path + "PPO_optimizer_"+str(i_ep))
 
     def load(self, path,i_ep):
-        self.old_policy.load_state_dict(torch.load(path+ "PPO_model_"+str(i_ep)))
-        self.optimizer.load_state_dict(torch.load(path+ "PPO_optimizer_"+str(i_ep)))
+        self.old_policy.load_state_dict(torch.load(path+ "PPO_model_"+str(i_ep), map_location=torch.device('cpu')))
+        self.optimizer.load_state_dict(torch.load(path+ "PPO_optimizer_"+str(i_ep), map_location=torch.device('cpu')))
+
+    def load_old(self, path):
+        self.old_policy.load_state_dict(torch.load(path+ "sac_policy", map_location=torch.device('cpu')))
+        self.optimizer.load_state_dict(torch.load(path+ "sac_optimizer", map_location=torch.device('cpu')))
+
 
 class Config():
     def __init__(self):
@@ -115,7 +127,8 @@ class Config():
         self.lr = 0.0001
         self.gamma = 0.9
         self.eps_clip = 0.1
-        self.device = "cuda:0"
+        # self.device = "cuda:0"
+        self.device = "cpu"
         self.K_epochs = 80
         self.train = True
 

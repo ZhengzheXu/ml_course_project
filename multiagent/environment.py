@@ -195,6 +195,7 @@ class MultiAgentEnv(gym.Env):
                 if action[0] == 2:  agent.action.u[0] = +1.0
                 if action[0] == 3:  agent.action.u[1] = -1.0
                 if action[0] == 4:  agent.action.u[1] = +1.0
+                
             else:
                 if self.force_discrete_action:
                     d = np.argmax(action[0])
@@ -214,6 +215,7 @@ class MultiAgentEnv(gym.Env):
             if agent.accel is not None:
                 sensitivity = agent.accel # 加速度
             a_norm = np.linalg.norm(agent.action.u)
+            # 加速度限幅为1
             if a_norm > 1:
                 agent.action.u = agent.action.u / a_norm
             agent.action.u *= sensitivity

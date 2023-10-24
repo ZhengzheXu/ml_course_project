@@ -17,6 +17,7 @@ import multiagent.scenarios as scenarios
 from multiagent.environment import MultiAgentEnv
 from multiagent.policy import InteractivePolicy
 import cv2
+import matplotlib.pyplot as plt
 
 curr_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S") # obtain current time
 
@@ -25,12 +26,14 @@ class PPOConfig:
         self.algo = 'PPO'
         # self.env = "CartPole-v1"
         self.env = "MULTIAGENT-ENVS"
-        self.seed = 15
+        self.seed = 114514
         self.ShowImage = False      # render image
         # self.result_path = curr_path+"/outputs/" +self.env+'/'+curr_time+'/results/'  # path to save results
         self.load_model = False     # load model
         self.train = True          # train model
-        self.model_path = 'saved_models/Simple_Tag_Random_Img/'  # path to save models
+        # self.train = False          # train model
+        self.model_path = 'saved_models/My_Tag_Random_Img_1608/'  # path to save models
+        # self.model_path = 'saved_models/org_stable_train/'  # path to save models
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
         self.capacity = int(2e5)    # replay buffer size
@@ -49,7 +52,7 @@ class PPOConfig:
         self.eps_end = 0.01
         # self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = torch.device('cpu')
-        self.frames = 10
+        self.frames = 5
 
 def env_agent_config(cfg:PPOConfig):
     """
@@ -58,7 +61,9 @@ def env_agent_config(cfg:PPOConfig):
     Input: configuration
     Output: env, agent
     """
-    scenario = scenarios.load("simple_tag.py").Scenario()
+    # scenario = scenarios.load("simple_tag.py").Scenario()
+    scenario = scenarios.load("simple_tag_2.py").Scenario()
+    # scenario = scenarios.load("my_tag.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
 
@@ -78,8 +83,17 @@ def env_agent_config(cfg:PPOConfig):
     return env,agent
 
 def normalize(state, observation_space = None):
-    norm = np.linalg.norm(state)
-    normalized = state / norm
+    # 分别对的每self.state_dim个元素进行归一化
+    N_frames = 1
+    N_col = state.shape[0] // N_frames
+    norm_array = np.array([np.linalg.norm(state[i*N_col:(i+1)*N_col]) for i in range(N_frames)])
+    # print(f"norm_array: {norm_array}")
+    # print(f"state.shape: {state.shape}")
+    # norm = np.linalg.norm(state)
+    # normalized = state / norm
+    normalized = np.array([state[i*N_col:(i+1)*N_col] / norm_array[i] for i in range(N_frames)])
+    normalized = normalized.flatten()/N_frames
+    # print(f"normalized: {normalized}")
     return normalized
 
 def stack_frame(stacked_frames, frame, is_new, cfg:PPOConfig):
@@ -121,8 +135,9 @@ def train(cfg:PPOConfig,env,agent):
         
         # update the stacked_frames, pop the first frame and append the new frame
         stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg) 
+        # state = (np.concatenate(stacked_frames, axis=0)) # flatten the stacked_frames, then normalize it
         state = normalize(np.concatenate(stacked_frames, axis=0)) # flatten the stacked_frames, then normalize it
-        # state = normalize(np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0))
+        # state = np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0)
         ep_reward = 0
         i_step = 0
         
@@ -132,12 +147,20 @@ def train(cfg:PPOConfig,env,agent):
             act = torch.zeros(1,5,device=cfg.device)
 
             action_np = action.cpu().numpy()
+            # norm = math.sqrt(action_np[:,0]**2+action_np[:,1]**2+action_np[:,2]**2+action_np[:,3]**2+action_np[:,4]**2)
             norm = math.sqrt(action_np[:,0]**2+action_np[:,1]**2)
             action_np[:,0] = action_np[:,0]/norm
             action_np[:,1] = action_np[:,1]/norm
+            # action_np[:,2] = action_np[:,2]/norm
+            # action_np[:,3] = action_np[:,3]/norm
+            # action_np[:,4] = action_np[:,4]/norm
 
+            # act[:,0] = torch.from_numpy(action_np[:,2]).to(cfg.device)
             act[:,1] = torch.from_numpy(action_np[:,0]).to(cfg.device)
+            # act[:,2] = torch.from_numpy(action_np[:,4]).to(cfg.device)
             act[:,3] = torch.from_numpy(action_np[:,1]).to(cfg.device)
+            # act[:,4] = torch.from_numpy(action_np[:,3]).to(cfg.device)
+
             # import ipdb;ipdb.set_trace()
             next_obs_n, reward_n, done_n, _ = env.step(act.cpu().squeeze(0).numpy())
             next_obs = np.concatenate(next_obs_n, axis=0)
@@ -148,7 +171,10 @@ def train(cfg:PPOConfig,env,agent):
             处理图像数据，提取出图片中的状态信息
             """
             stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg)
+            # next_state = (np.concatenate(stacked_frames, axis=0))
+
             next_state = normalize(np.concatenate(stacked_frames, axis=0))
+            # next_state = normalize(np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0))
             agent.buffer.rewards.append(reward_n[1])
             agent.buffer.is_terminals.append(done_n)
             # import ipdb;ipdb.set_trace()
@@ -160,7 +186,11 @@ def train(cfg:PPOConfig,env,agent):
             # print(f"episode: {i_ep}, step: {i_step}", end="\r")
             # print(f"action: {action}, real_action: {action_in}")
             # print(f"state: {state}", end="\n")
-            print(f"Episode:{i_ep+1}/{cfg.train_eps}, step {i_step}, action: {action} Reward:{ep_reward:.3f}", end="\r")
+            # print(f"Episode:{i_ep+1}/{cfg.train_eps}, step {i_step}, action: {action}", end="\r")
+            # print("Reward: {:.2f}".format(ep_reward), end="\r")
+            print("Episode = ", i_ep, " | Step = ", i_step, " | Action = ", action, end="\r")
+            print("Reward: {:.2f}".format(ep_reward), end="\r")
+        
             if True in done_n or (i_step >= cfg.train_steps):
                 # if done_n[1]:
                 #     time.sleep(1)
@@ -180,6 +210,17 @@ def train(cfg:PPOConfig,env,agent):
             agent.save(cfg.model_path,i_ep)
             np.savetxt(cfg.model_path+'reward_{}.txt'.format(curr_time),rewards)
             np.savetxt(cfg.model_path+'ma_reward_{}.txt'.format(curr_time),ma_rewards)
+        
+        # # 绘制训练曲线
+        # if i_ep % 8 == 0:
+        #     plt.plot(np.arange(len(rewards)), rewards)
+        #     plt.plot(np.arange(len(ma_rewards)), ma_rewards)
+        #     plt.ylabel('rewards')
+        #     plt.xlabel('training steps')
+        #     plt.legend(['rewards', 'ma_rewards'], loc='upper left')
+        #     plt.show()
+            # plt.savefig(cfg.model_path+'rewards_{}.png'.format(curr_time))
+            # plt.close()
 
     print('Complete training！')
     return rewards, ma_rewards
@@ -194,18 +235,25 @@ def eval(cfg:PPOConfig,env,agent):
     ma_rewards = [] # moveing average reward
 
     for i_ep in range(cfg.eval_eps):
-        stacked_frames = []
+
         observation, info = env.reset()
         image = env.render("rgb_array")[0]  
         obs_img = img2obs(image)
-        stacked_frames = stack_frame(stacked_frames, obs_img, True, cfg)
+        stacked_frames = [obs_img]*cfg.frames
+
+        stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg)
+        # state = (np.concatenate(stacked_frames, axis=0))
         state = normalize(np.concatenate(stacked_frames, axis=0))
         # state = normalize(np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0))
         ep_reward = 0
         i_step = 0
         while True:
         # for i_step in range(cfg.eval_steps):
+            # print("state:",state)
+            # state_rand = np.random.rand(state.shape[0])
             action = agent.select_action(state)
+            # action = agent.select_action(state_rand)
+            # print("This action is:",action)
             # import ipdb;ipdb.set_trace()
             act = torch.zeros(1,5,device=cfg.device)
 
@@ -223,10 +271,13 @@ def eval(cfg:PPOConfig,env,agent):
 
             stacked_frames = stack_frame(stacked_frames, obs_img, False, cfg)
             state = normalize(np.concatenate(stacked_frames, axis=0))
+            # state = (np.concatenate(stacked_frames, axis=0))
+
             # state = normalize(np.concatenate((stacked_frames[0], stacked_frames[-1]), axis=0))
             ep_reward += reward_n[1]
             i_step += 1
-
+            
+            # print("====state = ",state)
             print(f"Episode:{i_ep+1}/{cfg.eval_eps}, action: {action}, step {i_step} Reward:{ep_reward:.3f}", end="\r")
             # print(f"\rreward: {reward}", end="")
             # print(f"action: {action}, real_action: {action_in}")
@@ -309,14 +360,40 @@ def img2obs(image_array):
     ob2ag_vec_1 = obstacle_pos[sorted_indexes[0]]-agent_pos
     ob2ag_vec_2 = obstacle_pos[sorted_indexes[1]]-agent_pos
     ob2ag_vec_3 = obstacle_pos[sorted_indexes[2]]-agent_pos
+
+    # print("goal_pos",goal_pos)
+    # print("agent_pos",agent_pos)
+    # print("adv_pos",adv_pos)
+    # print("obstacle_pos",obstacle_pos)
+    # print("sorted_indexes",sorted_indexes)
+
+    # plt.scatter(goal_pos[0],goal_pos[1],c='r')
+    # plt.scatter(agent_pos[0],agent_pos[1],c='b')
+    # plt.scatter(adv_pos[0],adv_pos[1],c='g')
+    # plt.scatter(obstacle_pos[sorted_indexes[0]][0],obstacle_pos[sorted_indexes[0]][1],c='y')
+    # plt.scatter(obstacle_pos[sorted_indexes[1]][0],obstacle_pos[sorted_indexes[1]][1],c='y')
+    # plt.scatter(obstacle_pos[sorted_indexes[2]][0],obstacle_pos[sorted_indexes[2]][1],c='y')
+    # plt.show()
+
+    return_val = np.concatenate(
+        (goal_pos-agent_pos,
+        agent_pos,
+        adv_pos-agent_pos,
+        obstacle_pos[sorted_indexes[0]]-agent_pos,
+        obstacle_pos[sorted_indexes[1]]-agent_pos,
+        obstacle_pos[sorted_indexes[2]]-agent_pos)
+        )/256.0
     # return np.concatenate((goal_pos-agent_pos,agent_pos,adv_pos-agent_pos,obstacle_pos[sorted_indexes[0]]-agent_pos,obstacle_pos[sorted_indexes[1]]-agent_pos,obstacle_pos[sorted_indexes[2]]-agent_pos))/256
-    return np.concatenate((ag2go_vec,agent_pos,ad2ag_vec,ob2ag_vec_1,ob2ag_vec_2,ob2ag_vec_3))/256
+    # return np.concatenate((ag2go_vec,agent_pos,ad2ag_vec,ob2ag_vec_1,ob2ag_vec_2,ob2ag_vec_3))/256
+    # print("shape of return_val",return_val.shape)
+    return return_val
 
 if __name__ == "__main__":
     cfg=PPOConfig()
     
     env,agent = env_agent_config(cfg)
 
+    # keyboard_policy = InteractivePolicy(env,0)
     # print("env.action_space",env.action_space)
     # print("env.action_space.n",env.action_space.n)
     # print("env.observation_space",env.observation_space)
@@ -326,7 +403,7 @@ if __name__ == "__main__":
         # train
         if cfg.load_model:
             print(">>>>>>>>>>load model<<<<<<<<<<<<<<<")
-            agent.load(path=cfg.model_path,i_ep=1016)
+            agent.load(path=cfg.model_path,i_ep=160)
         rewards, ma_rewards = train(cfg, env, agent)
     else:
         # eval
@@ -334,7 +411,7 @@ if __name__ == "__main__":
         epoch = 0
         ss_epoch = 0
         i_step_all = 0
-        for i in range(3280,3320,8):
+        for i in range(0,362,8):
             print(i)
             epoch +=1
             agent.load(path=cfg.model_path,i_ep=i)

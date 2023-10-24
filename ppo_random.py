@@ -29,7 +29,7 @@ class PPOConfig:
         self.ShowImage = False      # render image
         # self.result_path = curr_path+"/outputs/" +self.env+'/'+curr_time+'/results/'  # path to save results
         self.load_model = False     # load model
-        self.train = False          # train model
+        self.train = True          # train model
         self.model_path = 'saved_models/Random_Multi/'  # path to save models
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
@@ -47,7 +47,7 @@ class PPOConfig:
         self.eps_start = 1.0
         self.eps_decay = 0.995
         self.eps_end = 0.01
-        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device=torch.device("cpu")
         self.frames = 10
 
 def env_agent_config(cfg:PPOConfig):
@@ -57,7 +57,7 @@ def env_agent_config(cfg:PPOConfig):
     Input: configuration
     Output: env, agent
     """
-    scenario = scenarios.load("simple_tag_random.py").Scenario()
+    scenario = scenarios.load("my_tag.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
 
