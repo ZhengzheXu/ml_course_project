@@ -26,22 +26,22 @@ class PPOConfig:
         self.algo = 'PPO'
         # self.env = "CartPole-v1"
         self.env = "MULTIAGENT-ENVS"
-        self.seed = 114514
+        self.seed = 1919810
         self.ShowImage = False      # render image
         # self.result_path = curr_path+"/outputs/" +self.env+'/'+curr_time+'/results/'  # path to save results
         self.load_model = False     # load model
-        self.train = True          # train model
-        # self.train = False          # train model
-        self.model_path = 'saved_models/My_Tag_Random_Img_1608/'  # path to save models
+        # self.train = True          # train model
+        self.train = False          # train model
+        self.model_path = 'saved_models/My_Tag_2159/'  # path to save models
         # self.model_path = 'saved_models/org_stable_train/'  # path to save models
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
         self.capacity = int(2e5)    # replay buffer size
-        self.batch_size  = 512      # minibatch size
+        self.batch_size  = 256      # minibatch size
         self.gamma = 0.99       # discount factor
-        self.lr = 1e-4          # learning rate
+        self.lr = 2*1e-4          # learning rate
         self.eps_clip = 0.2
-        self.K_epochs = 80
+        self.K_epochs = 20
         self.update_every = 1   # Learn every UPDATE_EVERY time steps.
         self.train_eps = 10000
         self.train_steps = 200
@@ -52,7 +52,7 @@ class PPOConfig:
         self.eps_end = 0.01
         # self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = torch.device('cpu')
-        self.frames = 5
+        self.frames = 8
 
 def env_agent_config(cfg:PPOConfig):
     """
@@ -61,8 +61,8 @@ def env_agent_config(cfg:PPOConfig):
     Input: configuration
     Output: env, agent
     """
-    # scenario = scenarios.load("simple_tag.py").Scenario()
-    scenario = scenarios.load("simple_tag_2.py").Scenario()
+    scenario = scenarios.load("simple_tag.py").Scenario()
+    # scenario = scenarios.load("simple_tag_2.py").Scenario()
     # scenario = scenarios.load("my_tag.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
@@ -72,7 +72,7 @@ def env_agent_config(cfg:PPOConfig):
     # 这个地方需要修改，首先把图片里的信息提取出来，然后再把这些信息输入到网络里，包括小球和目标点的位置信息，这些信息就是state
     state_len = 1
 
-    state_dim = 12
+    state_dim = 6
     # for i in range(state_len):
     state_dim = state_dim * state_len
     
@@ -376,12 +376,14 @@ def img2obs(image_array):
     # plt.show()
 
     return_val = np.concatenate(
-        (goal_pos-agent_pos,
+        (
+        goal_pos-agent_pos,
         agent_pos,
         adv_pos-agent_pos,
-        obstacle_pos[sorted_indexes[0]]-agent_pos,
-        obstacle_pos[sorted_indexes[1]]-agent_pos,
-        obstacle_pos[sorted_indexes[2]]-agent_pos)
+        # obstacle_pos[sorted_indexes[0]]-agent_pos,
+        # obstacle_pos[sorted_indexes[1]]-agent_pos,
+        # obstacle_pos[sorted_indexes[2]]-agent_pos,
+        )
         )/256.0
     # return np.concatenate((goal_pos-agent_pos,agent_pos,adv_pos-agent_pos,obstacle_pos[sorted_indexes[0]]-agent_pos,obstacle_pos[sorted_indexes[1]]-agent_pos,obstacle_pos[sorted_indexes[2]]-agent_pos))/256
     # return np.concatenate((ag2go_vec,agent_pos,ad2ag_vec,ob2ag_vec_1,ob2ag_vec_2,ob2ag_vec_3))/256
@@ -411,7 +413,7 @@ if __name__ == "__main__":
         epoch = 0
         ss_epoch = 0
         i_step_all = 0
-        for i in range(0,362,8):
+        for i in range(800*3,9020,8):
             print(i)
             epoch +=1
             agent.load(path=cfg.model_path,i_ep=i)

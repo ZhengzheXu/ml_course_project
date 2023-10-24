@@ -30,7 +30,7 @@ class PPOConfig:
         # self.result_path = curr_path+"/outputs/" +self.env+'/'+curr_time+'/results/'  # path to save results
         self.load_model = False     # load model
         self.train = True          # train model
-        self.model_path = 'saved_models/Random_Multi/'  # path to save models
+        self.model_path = 'saved_models/My_Random_Multi/'  # path to save models
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
         self.capacity = int(2e5)    # replay buffer size
@@ -57,7 +57,7 @@ def env_agent_config(cfg:PPOConfig):
     Input: configuration
     Output: env, agent
     """
-    scenario = scenarios.load("my_tag.py").Scenario()
+    scenario = scenarios.load("simple_tag_2.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
 

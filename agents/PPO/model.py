@@ -12,25 +12,36 @@ class ActorCritic(nn.Module):
         self.action_dim = action_dim
         self.action_var = torch.full((action_dim,), self.action_std_init * self.action_std_init)
 
+        # self.actor = nn.Sequential(
+        #     nn.Linear(input_dim, 256),
+        #     nn.ELU(),
+        #     nn.Linear(256, 64),
+        #     nn.ELU(),
+        #     nn.Linear(64, 32),
+        #     nn.ELU(),
+        #     nn.Linear(32, action_dim),
+        #     nn.Sigmoid()
+        # )
+
         self.actor = nn.Sequential(
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 128),
             nn.ELU(),
-            nn.Linear(256, 64),
+            nn.Linear(128, 128),
             nn.ELU(),
-            nn.Linear(64, 32),
+            nn.Linear(128, 128),
             nn.ELU(),
-            nn.Linear(32, action_dim),
+            nn.Linear(128, action_dim),
             nn.Sigmoid()
         )
 
         self.critic = nn.Sequential(
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 128),
             nn.ELU(),
-            nn.Linear(256, 64),
+            nn.Linear(128, 128),
             nn.ELU(),
-            nn.Linear(64, 32),
+            nn.Linear(128, 128),
             nn.ELU(),
-            nn.Linear(32, 1)
+            nn.Linear(128, 1)
         )
 
     def forward(self, state):

@@ -31,7 +31,7 @@ def predict_hunter_positions(hunter_pos, hunter_vel, N, T):
         hunter_pred[i, :] = this_pos[0, :]
     return hunter_pred
 
-def setup_optimization_problem(agent_pos, agent_vel, N, T, nearest_lm_pos, hunter_pred):
+def setup_optimization_problem(agent_pos, agent_vel, N, T, check_point, line_dis, nearest_lm_pos, hunter_pred):
     opti = ca.Opti()
 
     v = opti.variable(N, 2)
@@ -46,7 +46,10 @@ def setup_optimization_problem(agent_pos, agent_vel, N, T, nearest_lm_pos, hunte
     dis_safe_hunter = 0.02
 
     for i in range(1, N):
-        opti.subject_to(ca.mtimes([(p[i, :] - nearest_lm_pos), (p[i, :] - nearest_lm_pos).T]) >= dis_safe ** 2)
+        if np.linalg.norm(agent_pos - check_point) < line_dis:
+            pass
+        else:
+            opti.subject_to(ca.mtimes([(p[i, :] - nearest_lm_pos), (p[i, :] - nearest_lm_pos).T]) >= dis_safe ** 2)
         opti.subject_to(
             ca.mtimes([(p[i, :] - hunter_pred[i, :].reshape(1, 2)), (p[i, :] - hunter_pred[i, :].reshape(1, 2)).T]) >=
             dis_safe_hunter ** 2)
@@ -82,11 +85,11 @@ def mpc(env):
 
     N = 4
     T = 0.1
-    line_dis = 0.68
+    line_dis = 0.7
 
     hunter_pred = predict_hunter_positions(hunter_pos, hunter_vel, N, T)
 
-    opti, var = setup_optimization_problem(agent_pos, agent_vel, N, T, nearest_lm_pos, hunter_pred)
+    opti, var = setup_optimization_problem(agent_pos, agent_vel, N, T, check_point, line_dis, nearest_lm_pos, hunter_pred)
     v, p, u = var
     cost = define_cost_function(opti, var, N, agent_pos, check_point, line_dis, nearest_lm_pos)
 
@@ -117,6 +120,10 @@ if __name__ == '__main__':
     total_step = 0
     max_step = 400
 
+    dt = 0.1
+    u_list = []
+    x_list = []
+
     while True:
         input = mpc(env)
         this_input = input[0]
@@ -130,9 +137,31 @@ if __name__ == '__main__':
         next_obs_n, reward_n, done_n, _ = env.step(act_n, 1)
         image = env.render("rgb_array")[0]  # read image
         step += 1
-        
+
+        u_list.append([u_x, u_y])
+        x_list.append([env.world.agents[0].state.p_pos[0], env.world.agents[0].state.p_pos[1]])
+
         if step % 50:
             time.sleep(0.0167) # 60 fps
 
         if True in done_n or step > max_step:
             break
+    
+    time_list = np.arange(0, len(u_list) * dt, dt)
+    plt.figure(figsize=(10, 3))
+    plt.subplot(121)
+    plt.plot(time_list, np.array(x_list)[:, 0], label="$x$")
+    plt.plot(time_list, np.array(x_list)[:, 1], label="$y$")
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.ylabel("Position [m]")
+    plt.grid()
+    plt.subplot(122)
+    plt.plot(time_list, np.array(u_list)[:, 0], label="$u_x$")
+    plt.plot(time_list, np.array(u_list)[:, 1], label="$u_y$")
+    plt.legend()
+    plt.xlabel("Time [s]")
+    plt.ylabel("Velocity [m/s]")
+    plt.grid()
+    plt.show()
+    

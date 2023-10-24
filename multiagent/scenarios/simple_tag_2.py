@@ -214,7 +214,7 @@ class Scenario(BaseScenario):
                     rew -= 5000
         for i, border in enumerate(world.borders):
             if self.is_collision(border, agent):
-                rew -= 5000
+                rew -= 8000
                 
         dist = np.sqrt(
             np.sum(np.square(agent.state.p_pos - world.check[0].state.p_pos)))
@@ -233,10 +233,10 @@ class Scenario(BaseScenario):
         print("dist - last_dist: ", dist - last_dist)
         if dist - last_dist > -0.0005:
             print("wrong direction")
-            rew -= 2
+            rew -= 0.2
         else:
             print("right direction")
-            rew += 4
+            rew += 0.2
         
         self.last_ag2check = ag2check_dist
 
@@ -248,7 +248,7 @@ class Scenario(BaseScenario):
             self.last_ad2ag = ag2adv_dist
         last_ad2ag_dist = self.last_ad2ag
         # 如果ag到adv的距离变大了，说明ag在逃跑，奖励
-        if last_ad2ag_dist < ag2adv_dist:
+        if last_ad2ag_dist + 0.004 < ag2adv_dist:
             rew += 0.2
         else:
             rew -= 0.2
@@ -256,7 +256,7 @@ class Scenario(BaseScenario):
         rew -= 0.1 * dist
 
         self.step_num += 1
-        if dist < 0.15:
+        if dist < 0.25:
             # 完成任务的奖励
             rew += 5000
             rew -= self.step_num
