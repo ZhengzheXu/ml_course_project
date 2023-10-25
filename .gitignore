@@ -2,5 +2,11 @@ saved_models/**
 !saved_models/My_Tag_Model/
 *.pyc
 __pycache__/
-*.egg-info/
+*.egg-info/**
 old
+*.cpython-*.pyc
+multiagent/__pycache__/__init__.cpython-38.pyc
+multiagent/__pycache__/environment.cpython-38.pyc
+multiagent/__pycache__/multi_discrete.cpython-38.pyc
+multiagent/__pycache__/policy.cpython-38.pyc
+multiagent/scenarios/__pycache__/__init__.cpython-38.pyc
