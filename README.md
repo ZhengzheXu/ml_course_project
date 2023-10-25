@@ -7,7 +7,8 @@ In this project, we acomplish the task by two methods:
 + **Model Predictive Control (MPC)**: 
 We formulate a model predictive control (MPC) problem for the chase-escape game. The MPC problem is formulated using CasADi and solved by IPOPT in real-time.
 + **Reinforcement Learning (RL)**:
-We use PPO (Proximal Policy Optimization) to train the evader to escape from the hunter. The network is an actor-critic network. 
+We use PPO (Proximal Policy Optimization) to train the Actor-Critic network for the evader. 
+The input of the network is a 120-dimensional vector, which is the concatenation of the 2D position of the hunter, evader, and the obstacles. The output of the network is a 2-dimensional vector, which is the acceleration of the evader.
 
 <p align="center">
     <img src="./gif/mpc_demo.gif" width="250" height="255" alt="mpc_demo"/>
