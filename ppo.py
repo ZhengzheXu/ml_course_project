@@ -32,18 +32,18 @@ class PPOConfig:
         self.load_model = False     # load model
         # self.train = True          # train model
         self.train = False          # train model
-        self.model_path = 'saved_models/My_Tag_2159/'  # path to save models
+        self.model_path = 'saved_models/My_Tag_Model/'  # path to save models
         # self.model_path = 'saved_models/org_stable_train/'  # path to save models
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
         self.capacity = int(2e5)    # replay buffer size
         self.batch_size  = 256      # minibatch size
         self.gamma = 0.99       # discount factor
-        self.lr = 2*1e-4          # learning rate
-        self.eps_clip = 0.2
-        self.K_epochs = 20
+        self.lr = 3*1e-4          # learning rate
+        self.eps_clip = 0.15
+        self.K_epochs = 60
         self.update_every = 1   # Learn every UPDATE_EVERY time steps.
-        self.train_eps = 10000
+        self.train_eps = 100000
         self.train_steps = 200
         self.eval_eps = 1
         self.eval_steps = 2000
@@ -61,8 +61,10 @@ def env_agent_config(cfg:PPOConfig):
     Input: configuration
     Output: env, agent
     """
-    scenario = scenarios.load("simple_tag.py").Scenario()
+   # scenario = scenarios.load("simple_tag.py").Scenario()
+    #
     # scenario = scenarios.load("simple_tag_2.py").Scenario()
+    scenario = scenarios.load("my_tag_new.py").Scenario()
     # scenario = scenarios.load("my_tag.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
@@ -72,7 +74,7 @@ def env_agent_config(cfg:PPOConfig):
     # 这个地方需要修改，首先把图片里的信息提取出来，然后再把这些信息输入到网络里，包括小球和目标点的位置信息，这些信息就是state
     state_len = 1
 
-    state_dim = 6
+    state_dim = 12
     # for i in range(state_len):
     state_dim = state_dim * state_len
     
@@ -147,21 +149,13 @@ def train(cfg:PPOConfig,env,agent):
             act = torch.zeros(1,5,device=cfg.device)
 
             action_np = action.cpu().numpy()
-            # norm = math.sqrt(action_np[:,0]**2+action_np[:,1]**2+action_np[:,2]**2+action_np[:,3]**2+action_np[:,4]**2)
             norm = math.sqrt(action_np[:,0]**2+action_np[:,1]**2)
             action_np[:,0] = action_np[:,0]/norm
             action_np[:,1] = action_np[:,1]/norm
-            # action_np[:,2] = action_np[:,2]/norm
-            # action_np[:,3] = action_np[:,3]/norm
-            # action_np[:,4] = action_np[:,4]/norm
 
-            # act[:,0] = torch.from_numpy(action_np[:,2]).to(cfg.device)
             act[:,1] = torch.from_numpy(action_np[:,0]).to(cfg.device)
-            # act[:,2] = torch.from_numpy(action_np[:,4]).to(cfg.device)
             act[:,3] = torch.from_numpy(action_np[:,1]).to(cfg.device)
-            # act[:,4] = torch.from_numpy(action_np[:,3]).to(cfg.device)
 
-            # import ipdb;ipdb.set_trace()
             next_obs_n, reward_n, done_n, _ = env.step(act.cpu().squeeze(0).numpy())
             next_obs = np.concatenate(next_obs_n, axis=0)
 
@@ -380,9 +374,9 @@ def img2obs(image_array):
         goal_pos-agent_pos,
         agent_pos,
         adv_pos-agent_pos,
-        # obstacle_pos[sorted_indexes[0]]-agent_pos,
-        # obstacle_pos[sorted_indexes[1]]-agent_pos,
-        # obstacle_pos[sorted_indexes[2]]-agent_pos,
+        obstacle_pos[sorted_indexes[0]]-agent_pos,
+        obstacle_pos[sorted_indexes[1]]-agent_pos,
+        obstacle_pos[sorted_indexes[2]]-agent_pos,
         )
         )/256.0
     # return np.concatenate((goal_pos-agent_pos,agent_pos,adv_pos-agent_pos,obstacle_pos[sorted_indexes[0]]-agent_pos,obstacle_pos[sorted_indexes[1]]-agent_pos,obstacle_pos[sorted_indexes[2]]-agent_pos))/256
@@ -413,7 +407,7 @@ if __name__ == "__main__":
         epoch = 0
         ss_epoch = 0
         i_step_all = 0
-        for i in range(800*3,9020,8):
+        for i in range(3280,3320,8):
             print(i)
             epoch +=1
             agent.load(path=cfg.model_path,i_ep=i)

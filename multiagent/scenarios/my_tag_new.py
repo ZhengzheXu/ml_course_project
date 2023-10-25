@@ -5,11 +5,6 @@ import math
 
 
 class Scenario(BaseScenario):
-    def __init__(self):
-        self.last_ag2check = None
-        self.last_ad2ag = None
-        self.step_num = 0
-
     def make_world(self):
         # global index
         # index = 0
@@ -88,7 +83,7 @@ class Scenario(BaseScenario):
             # agent.state.p_pos = np.random.uniform(-0.28, -0.05, world.dim_p) if agent.adversary else np.random.uniform(0.05, 0.28, world.dim_p)
             if agent_pos is None:
                 agent.state.p_pos = np.array(
-                    [0.0, 0.0]) if agent.adversary else np.array([0.5, 0.5])
+                    [0.0, 0.0]) if agent.adversary else np.array([0.6, 0.6])
             else:
                 agent.state.p_pos = agent_pos[0] if agent.adversary else agent_pos[1] 
             agent.state.p_vel = np.zeros(world.dim_p)  # agent初始速度
@@ -99,7 +94,7 @@ class Scenario(BaseScenario):
                 landmark.state.p_pos = pos[i]  # landmark初始位置
                 landmark.state.p_vel = np.zeros(world.dim_p)
         # world.check[0].state.p_pos = [np.random.uniform(-0.6,0.6),np.random.uniform(-0.6,0.6)]
-        world.check[0].state.p_pos = [-0.5, -0.5]
+        world.check[0].state.p_pos = [-0.6, -0.6]
         world.check[0].state.p_vel = np.zeros(world.dim_p)
         # # 增加部分 [x,y]=[0,0]是在视野中心
         # # 每条边20个border， 计算好大概位置，依次为每条边的border生成位置坐标
@@ -189,11 +184,6 @@ class Scenario(BaseScenario):
             dist = np.sqrt(np.sum(np.square(agent.state.p_pos - world.check[0].state.p_pos)))
             if dist < agent.size + world.check[0].size:
                 return True
-        
-        # border
-        for i, border in enumerate(world.borders):
-            if self.is_collision(border, agent):
-                return True
 
     def agent_reward(self, agent, world):
         # Agents are negatively rewarded if caught by adversaries
@@ -203,64 +193,22 @@ class Scenario(BaseScenario):
         if agent.collide:
             for a in adversaries:
                 if self.is_collision(a, agent):
-                    rew -= 5000
+                    rew -= 10
         for i, landmark in enumerate(world.landmarks):
             if not landmark.boundary:
-                # for a in adversaries:
-                #     if self.is_collision(a, landmark):
-                #         rew += 10
-                
-                if self.is_collision(agent, landmark):
-                    rew -= 5000
+                if self.is_collision(landmark, agent):
+                    rew -= 10
         for i, border in enumerate(world.borders):
             if self.is_collision(border, agent):
-                rew -= 8000
-                
+                rew -= 10
+
         dist = np.sqrt(
             np.sum(np.square(agent.state.p_pos - world.check[0].state.p_pos)))
-        # 计算agent到check点的方向向量
-        ag2check = world.check[0].state.p_pos - agent.state.p_pos
-        # 计算agent的朝向向量
-        ag2vel = agent.state.p_vel
-
-        ag2check_dist = np.sqrt(np.sum(np.square(ag2check)))
-        
-        if self.last_ag2check is None:
-            self.last_ag2check = ag2check_dist
-        last_dist = self.last_ag2check
-
-        # 计算agent到check点的方向向量
-        print("dist - last_dist: ", dist - last_dist)
-        if dist - last_dist > -0.0005:
-            print("wrong direction")
-            rew -= 2
-        else:
-            print("right direction")
-            rew += 2
-        
-        self.last_ag2check = ag2check_dist
-
-        # 计算ag到adv的方向向量
-        ag2adv = adversaries[0].state.p_pos - agent.state.p_pos
-        # 计算ag到adv的距离
-        ag2adv_dist = np.sqrt(np.sum(np.square(ag2adv)))
-        if self.last_ad2ag is None:
-            self.last_ad2ag = ag2adv_dist
-        last_ad2ag_dist = self.last_ad2ag
-        # 如果ag到adv的距离变大了，说明ag在逃跑，奖励
-        if last_ad2ag_dist + 0.004 < ag2adv_dist:
-            rew += 0.2
-        else:
-            rew -= 0.2
         # 距离check点越远，惩罚越大
-        rew -= 0.1 * dist
-
-        self.step_num += 1
-        if dist < 0.25:
+        rew -= 0.5 * dist
+        if dist < agent.size + world.check[0].size:
             # 完成任务的奖励
-            rew += 8000
-            rew -= self.step_num * 5
-            self.step_num = 0
+            rew += 12
 
         return rew
 
@@ -271,16 +219,16 @@ class Scenario(BaseScenario):
         agents = self.good_agents(world)
         adversaries = self.adversaries(world)
         # reward can optionally be shaped (decreased reward for increased distance from agents)
-        # if shape:
-        #     for adv in adversaries:
-        #         rew -= 0.1 * \
-        #             min([np.sqrt(np.sum(np.square(a.state.p_pos - adv.state.p_pos)))
-        #                 for a in agents])
-        # if agent.collide:
-        #     for ag in agents:
-        #         for adv in adversaries:
-        #             if self.is_collision(ag, adv):
-        #                 rew -= 5000
+        if shape:
+            for adv in adversaries:
+                rew -= 0.1 * \
+                    min([np.sqrt(np.sum(np.square(a.state.p_pos - adv.state.p_pos)))
+                        for a in agents])
+        if agent.collide:
+            for ag in agents:
+                for adv in adversaries:
+                    if self.is_collision(ag, adv):
+                        rew += 10
 
         return rew
 
