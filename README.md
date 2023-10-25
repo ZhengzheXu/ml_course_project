@@ -1,5 +1,15 @@
 # Machine Learning Course Project
-Course project for machine learning at HITSZ
+Course project for machine learning at HITSZ. The project is about the chase-escape game. The goal is to train the evader to escape from the hunter while avoiding obstacles. 
+
+In this project, we acomplish the task by two methods:
++ **Model Predictive Control (MPC)**: 
+We formulate a model predictive control (MPC) problem for the chase-escape game. The MPC problem is formulated using CasADi and solved by IPOPT in real-time.
++ **Reinforcement Learning (RL)**:
+We use PPO (Proximal Policy Optimization) to train the evader to escape from the hunter. The network is an actor-critic network. 
+
+## 0. Project Structure
++ `mpc_main.py` is a model predictive control (MPC) algorithm for the chase-escape game. It is a baseline for the project *(some parameters can be tuned for better performance)*. Maybe you can try to adopt a CBF (control barrier function) to get better obstacle avoidance performance.
++ `ppo_main.py` can use to train and evaluate the evader. We provide a trained model in `saved_models/My_Tag_Model`. Feel free to use it to train your own model.
 
 ## 1. Environment Configuration
 
@@ -14,6 +24,7 @@ Course project for machine learning at HITSZ
 **Dependencies:**
 - gymnasium
 - pyglet
+- CasADi (for `mpc_main.py`)
 
 > Run `demo.py` to check the environment, and install any missing packages.
 
@@ -80,6 +91,3 @@ The most important environment files are core.py, simple_tag.py, and environment
 - In the core.py file, various entities in the environment are mainly declared: agent, border, landmark, check, etc.
 - The simple_tag.py file mainly sets parameters for entities (initial positions, accelerations, etc.) and reward settings.
 - The environment.py file is the classic environment interface in reinforcement learning algorithms (step, reset, reward, etc.). You can rewrite the self._set_action function in the given task according to your needs.
-
-## 5. Task Requirements
-Avoid being caught by the hunter and reach the checkpoint ([-0.5, -0.5]). 

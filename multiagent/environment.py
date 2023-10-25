@@ -80,16 +80,7 @@ class MultiAgentEnv(gym.Env):
             # self.viewers = [None]
         self._reset_render()
 
-    # ###
-    # def _seed(self, seed=None):
-    #     if seed is None:
-    #         np.random.seed(1)
-    #     else:
-    #         np.random.seed(seed)
-
-    ### gai
     def step(self, action_n, target=None):
-    # def step(self, action_n):
         action_n = np.array((np.zeros(5), action_n))
         obs_n = []
         reward_n = []
@@ -111,7 +102,7 @@ class MultiAgentEnv(gym.Env):
             info_n['n'].append(self._get_info(agent))
             done_n.append(self._get_done(agent))
 
-        # # 追捕者adversary
+        # adversary
         delta_pos_a = [obs_n[0][2], obs_n[0][3]]  # 相对位置
         distance_a = np.sqrt(np.sum(np.square(delta_pos_a)))
         d_t = delta_pos_a / distance_a  # the unitary relative-positional vector
@@ -124,7 +115,7 @@ class MultiAgentEnv(gym.Env):
         # evader action
         self._set_action(action_n[1], self.agents[1], self.action_space[1]) 
         
-        # # all agents get total reward in cooperative case
+        # all agents get total reward in cooperative case
         reward = np.sum(reward_n)
         if self.shared_reward:
             reward_n = [reward] * self.n
@@ -218,8 +209,7 @@ class MultiAgentEnv(gym.Env):
                 agent.action.u = agent.action.u / a_norm
             agent.action.u *= sensitivity
             action = action[1:]  # action为空列表
-            # print("ddd:",agent.action.u) #查看信息
-        # make sure we used all elements of action
+
         assert len(action) == 0
 
 
