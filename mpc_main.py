@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import numpy as np
 
 import multiagent.scenarios as scenarios
@@ -111,20 +114,12 @@ def mpc(env):
     sol = opti.solve()
     return sol.value(u)
 
-def get_state(env):
-    agent_pos = np.array([env.world.agents[0].state.p_pos]).reshape(1, 2)
-    agent_vel = np.array([env.world.agents[0].state.p_vel]).reshape(1, 2)
-    print(f"agent_pos: {agent_pos}")
-    print(f"agent_vel: {agent_vel}")
-    return agent_pos, agent_vel
-
 if __name__ == '__main__':
     # parse arguments
     scenario = scenarios.load("my_tag_new.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
 
-    # env.reset(np.array([[0.0, 0.0], [0.7, 0.7]]))
     env.reset()
     image = env.render("rgb_array")  # read image
     step = 0
@@ -197,4 +192,3 @@ if __name__ == '__main__':
     plt.ylabel("Input")
     plt.grid()
     plt.show()
-    

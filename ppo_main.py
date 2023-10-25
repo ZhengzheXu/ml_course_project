@@ -1,26 +1,7 @@
-import os
-import sys
-import datetime
-import math
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-import torch
-import numpy as np
-import cv2
-
-from agents.PPO.agent import PPO
-
-import gymnasium as gym
-
-import multiagent.scenarios as scenarios
-from multiagent.environment import MultiAgentEnv
 from ppo_function import PPOConfig, env_agent_config, train, eval
-
-# Additional code for setting paths
-curr_path = os.path.dirname(__file__)
-parent_path = os.path.dirname(curr_path)
-sys.path.append(parent_path)  # Add current terminal path to sys.path
-
-curr_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S") # Obtain current time
 
 if __name__ == "__main__":
     # Initialize PPO configuration
