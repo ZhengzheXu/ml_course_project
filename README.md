@@ -1,5 +1,7 @@
 # Machine Learning Course Project
-Course project for machine learning at HITSZ. The project is about the chase-escape game. The goal is to train the evader to escape from the hunter while avoiding obstacles. 
+This is a course project for the course **Introduction to Machine Learning** (2023 Fall) at Harbin Institute of Technology (Shenzhen).
+
+The project is about the chase-escape game. The goal is to train the evader to escape from the hunter while avoiding obstacles. 
 
 In this project, we acomplish the task by two methods:
 + **Model Predictive Control (MPC)**: 
