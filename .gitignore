@@ -1,2 +1,5 @@
 saved_models/**
 *.pyc
+__pycache__/
+*.egg-info/
+old

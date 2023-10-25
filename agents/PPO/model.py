@@ -8,40 +8,29 @@ from torch.distributions import MultivariateNormal
 class ActorCritic(nn.Module):
     def __init__(self, input_dim, action_dim):
         super(ActorCritic, self).__init__()
-        self.action_std_init = 0.5
+        self.action_std_init = 1.5
         self.action_dim = action_dim
         self.action_var = torch.full((action_dim,), self.action_std_init * self.action_std_init)
 
-        # self.actor = nn.Sequential(
-        #     nn.Linear(input_dim, 256),
-        #     nn.ELU(),
-        #     nn.Linear(256, 64),
-        #     nn.ELU(),
-        #     nn.Linear(64, 32),
-        #     nn.ELU(),
-        #     nn.Linear(32, action_dim),
-        #     nn.Sigmoid()
-        # )
-
         self.actor = nn.Sequential(
-            nn.Linear(input_dim, 128),
+            nn.Linear(input_dim, 256),
             nn.ELU(),
-            nn.Linear(128, 128),
+            nn.Linear(256, 64),
             nn.ELU(),
-            nn.Linear(128, 128),
+            nn.Linear(64, 32),
             nn.ELU(),
-            nn.Linear(128, action_dim),
+            nn.Linear(32, action_dim),
             nn.Sigmoid()
         )
 
         self.critic = nn.Sequential(
-            nn.Linear(input_dim, 128),
+            nn.Linear(input_dim, 256),
             nn.ELU(),
-            nn.Linear(128, 128),
+            nn.Linear(256, 64),
             nn.ELU(),
-            nn.Linear(128, 128),
+            nn.Linear(64, 32),
             nn.ELU(),
-            nn.Linear(128, 1)
+            nn.Linear(32, 1)
         )
 
     def forward(self, state):
