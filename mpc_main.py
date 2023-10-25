@@ -116,7 +116,7 @@ def mpc(env):
 
 if __name__ == '__main__':
     # parse arguments
-    scenario = scenarios.load("my_tag.py").Scenario()
+    scenario = scenarios.load("simple_tag.py").Scenario()
     world = scenario.make_world()
     env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, info_callback=None, done_callback=scenario.is_done, shared_viewer = True)
 
