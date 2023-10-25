@@ -9,6 +9,12 @@ We formulate a model predictive control (MPC) problem for the chase-escape game.
 + **Reinforcement Learning (RL)**:
 We use PPO (Proximal Policy Optimization) to train the evader to escape from the hunter. The network is an actor-critic network. 
 
+<p align="center">
+    <img src="./gif/mpc_demo.gif" width="250" height="255" alt="mpc_demo"/>
+    <span style="display:inline-block; width: 40px;"></span>
+    <img src="./gif/ppo_demo.gif" width="250" height="255" alt="ppo_demo"/>
+</p>
+
 ## 0. Project Structure
 + `mpc_main.py` is a model predictive control (MPC) algorithm for the chase-escape game. It is a baseline for the project *(some parameters can be tuned for better performance)*. Maybe you can try to adopt a CBF (control barrier function) to get better obstacle avoidance performance.
 + `ppo_main.py` can use to train and evaluate the evader. We provide a trained model in `saved_models/My_Tag_Model`. Feel free to use it to train your own model.
