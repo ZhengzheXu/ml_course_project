@@ -1,4 +1,5 @@
 saved_models/**
+!saved_models/My_Tag_Model/
 *.pyc
 __pycache__/
 *.egg-info/
